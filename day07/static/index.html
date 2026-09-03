@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>简历优化器 · AI 产品助理版</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+           background: #f5f7fa; color: #1f2329; }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 28px 20px 60px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: #8a919f; font-size: 13px; margin-bottom: 22px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 6px; }
+    textarea { width: 100%; min-height: 120px; padding: 10px 12px; border: 1px solid #d0d5dd;
+               border-radius: 8px; font-size: 14px; line-height: 1.6; resize: vertical; }
+    textarea:focus { outline: none; border-color: #3370ff; }
+    button { margin-top: 18px; width: 100%; padding: 12px; border: none; border-radius: 8px;
+             background: #3370ff; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+    button:hover { background: #245bdb; }
+    button:disabled { background: #a9c0ff; cursor: not-allowed; }
+    .result { margin-top: 26px; }
+    .score { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+    .score b { font-size: 30px; color: #3370ff; margin: 0 4px; }
+    .card { background: #fff; border: 1px solid #e5e8eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+    .card h3 { margin: 0 0 8px; font-size: 14px; }
+    .card.strengths h3 { color: #1f9b5a; }
+    .card.gaps h3 { color: #e0532f; }
+    .card.suggestions h3 { color: #3370ff; }
+    .card ul { margin: 0; padding-left: 18px; }
+    .card li { font-size: 14px; line-height: 1.8; }
+    .err { background: #fff1f0; border: 1px solid #ffccc7; color: #cf1322;
+           padding: 12px; border-radius: 8px; font-size: 14px; margin-top: 20px; }
+    .hint { font-size: 12px; color: #8a919f; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>📄 简历优化器</h1>
+    <div class="sub">基于 DeepSeek · 输入你的简历和目标岗位 JD，AI 给出匹配度与优化建议</div>
+
+    <label for="resume">你的简历</label>
+    <textarea id="resume" placeholder="例：陈果，24岁，AI专业本科。做过 YOLOv5 标注项目，实习深信服渠道售后、教学助理。求职成都 AI产品助理。">陈果，24岁，AI专业本科毕业。做过 YOLOv5 图像标注项目（bounding box、类别标注）。实习：深信服渠道售后、教学助理。沟通表达能力强。求职意向：成都 AI产品助理。</textarea>
+
+    <label for="jd">目标岗位 JD</label>
+    <textarea id="jd" placeholder="例：招聘 AI产品助理：熟悉大模型应用、能写 Python、有数据标注经验优先、良好沟通能力。">招聘 AI产品助理：熟悉大模型应用、能写 Python、有数据标注经验优先、具备良好沟通能力。</textarea>
+    <div class="hint">模板已预填，可直接点「开始优化」看效果，也可改成你自己的内容。</div>
+
+    <button id="btn" onclick="optimize()">开始优化</button>
+
+    <div id="out"></div>
+  </div>
+
+  <script>
+    async function optimize() {
+      const btn = document.getElementById("btn");
+      const out = document.getElementById("out");
+      const resume = document.getElementById("resume").value.trim();
+      const jd = document.getElementById("jd").value.trim();
+      if (!resume || !jd) { out.innerHTML = '<div class="err">简历和 JD 都要填～</div>'; return; }
+
+      btn.disabled = true; btn.textContent = "AI 分析中…"; out.innerHTML = "";
+      try {
+        const resp = await fetch("/api/optimize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resume, jd }),
+        });
+        if (!resp.ok) throw new Error("服务端返回 " + resp.status);
+        const d = await resp.json();
+        out.innerHTML = render(d);
+      } catch (e) {
+        out.innerHTML = '<div class="err">出错了：' + e.message + '（检查 .env 里的 Key 是否有效、网络是否通）</div>';
+      } finally {
+        btn.disabled = false; btn.textContent = "开始优化";
+      }
+    }
+
+    function render(d) {
+      const list = (arr) => "<ul>" + arr.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>";
+      return (
+        '<div class="result">' +
+          '<div class="score">岗位匹配度：<b>' + d.match_score + '</b>/ 100</div>' +
+          '<div class="card strengths"><h3>✅ 优势</h3>' + list(d.strengths) + '</div>' +
+          '<div class="card gaps"><h3>⚠️ 差距</h3>' + list(d.gaps) + '</div>' +
+          '<div class="card suggestions"><h3>💡 建议</h3>' + list(d.suggestions) + '</div>' +
+        '</div>'
+      );
+    }
+    function esc(s) { return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+  </script>
+</body>
+</html>

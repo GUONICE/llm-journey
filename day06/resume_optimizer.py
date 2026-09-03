@@ -30,7 +30,7 @@ jd = "招聘 AI产品助理：熟悉大模型应用、能写 Python、有数据�
 resp = client.chat.completions.create(
     model="deepseek-chat",
     messages=[
-        {"role": "system", "content": "你是资深简历顾问。只输出 JSON，键必须严格是英文："
+        {"role": "system", "content": "你是资深简历顾问。只输出 JSON，键必须严格是中文："
          "match_score(整数0-100)、strengths(优势字符串数组)、gaps(差距字符串数组)、suggestions(建议字符串数组)。"},
         {"role": "user", "content": f"简历：{resume}\n岗位JD：{jd}\n请给出匹配分析和优化建议。"},
     ],
