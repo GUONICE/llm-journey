@@ -66,7 +66,15 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ resume, jd }),
         });
-        if (!resp.ok) throw new Error("服务端返回 " + resp.status);
+        if (!resp.ok) {
+          // 被后端拒绝：把后端给的理由（detail）显示出来
+          let msg = "HTTP " + resp.status;
+          try {
+            const e = await resp.json();
+            if (e.detail) msg = JSON.stringify(e.detail, null, 1);
+          } catch (_) {}
+          throw new Error("被后端拒绝（" + resp.status + "）：\n" + msg);
+        }
         const d = await resp.json();
         out.innerHTML = render(d);
       } catch (e) {

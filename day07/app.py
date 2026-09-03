@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
@@ -25,9 +25,12 @@ class ResumeAdvice(BaseModel):
     suggestions: list[str]           # 建议
 
 # 2) 定义"前端会发来什么"（请求体的结构）
+#    Field(min_length=10)：只传字段还不够，内容至少 10 个字
+#    注意：前端 JS 也有校验，但那是"省一次请求"的体验优化；
+#    这一层才是真正的安全边界 —— 别人用 curl 直接打接口也绕不过去
 class OptimizeRequest(BaseModel):
-    resume: str                      # 简历文本
-    jd: str                          # 岗位 JD 文本
+    resume: str = Field(min_length=10, description="简历文本，至少 10 个字")
+    jd: str = Field(min_length=10, description="岗位 JD 文本，至少 10 个字")
 
 app = FastAPI()
 
