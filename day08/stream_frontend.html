@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="zhemRLGUfLtGjbYq4w4A5V">
+<head data-page-node-id="KBSiGqfN9E2K0kf9BwzSwd">
+  <meta charset="utf-8" data-page-node-id="oFGn60KZv2SMDFPK4dYJ0z">
+  <title>Day8 流式输出 Demo</title>
+</head>
+<body style="font-family:sans-serif;max-width:720px;margin:40px auto;line-height:1.7;" data-page-node-id="6AcSFI7CLdLnXy80eP7uv2">
+
+  <h2 data-page-node-id="TOIRLnDqCXcdBEU6n54j8a">流式输出：字一个一个蹦出来</h2>
+
+  <p data-page-node-id="I07pNtdMXYLD7DjeXbpWsJ">
+    问模型：<input id="q" value="用一句话解释什么是流式输出" style="width:320px" data-page-node-id="nXciIFJPBXL97eI4uCUgAt">
+    <button onclick="askNormal()" data-page-node-id="bnHU7WGim8PihL8B27CaSI">① 普通方式（等全部）</button>
+    <button onclick="askStream()" data-page-node-id="0MgAU3YbkgZPCQHB8gZWdT">② 流式方式（边收边显示）</button>
+  </p>
+
+  <h3 data-page-node-id="fvWD0cQrmQD9rhYIOXECAB">回答：</h3>
+  <pre id="out" style="background:#f4f4f4;padding:14px;white-space:pre-wrap;min-height:80px;" data-page-node-id="bMOUoozNb5Bl9mKAC6Tkr6">（还没问过）</pre>
+
+  <script>
+  const out = document.getElementById("out");
+
+
+  // ==============================================================
+  // ① 普通方式：await resp.json() 会一直等，等到最后一块到齐才继续
+  //
+  //    你会看到：点下去 → 页面毫无反应 → 十几秒后答案整块出现
+  //    这就是 Day7 那个简历优化器的体验，用户以为页面死了
+  // ==============================================================
+  async function askNormal() {
+    out.textContent = "（正在等后端把全部内容算完...）";
+
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: document.getElementById("q").value })
+    });
+
+    const text = await resp.text();   // 卡在这儿，直到全部收完
+    out.textContent = text;
+  }
+
+
+  // ==============================================================
+  // ② 流式方式：自己拿"读的把手"，收一块就往页面上贴一块
+  //
+  //    后端没变，还是那个 /api/chat —— 变的只是我们读它的方式。
+  //    注意：后端 yield 多少块，这里就循环多少次，两边是对称的。
+  // ==============================================================
+  async function askStream() {
+    out.textContent = "";             // 清空上次的回答
+
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: document.getElementById("q").value })
+    });
+
+    // 拿一个"能一块块读"的把手
+    const reader = resp.body.getReader();
+    // 收到的是字节，需要翻译成文字
+    const decoder = new TextDecoder("utf-8");
+
+    while (true) {
+      const { done, value } = await reader.read();   // 读一块
+      if (done) break;                                // 后端说"我说完了"，退出
+
+      // stream: true 很重要：一个中文字占 3 个字节，可能刚好被切成两半，
+      // 加了这个参数，解码器会把半个字攒着，等下一块拼起来再翻，避免乱码
+      out.textContent += decoder.decode(value, { stream: true });
+    }
+  }
+  </script>
+
+</body>
+</html>
