@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Day9 多轮对话 Demo</title>
+</head>
+<body style="font-family:sans-serif;max-width:720px;margin:40px auto;line-height:1.7;">
+
+  <h2>多轮对话：模型"记得"你之前说过的话</h2>
+
+  <p>
+    问模型：<input id="q" value="我叫陈果，记住了吗" style="width:320px">
+    <button onclick="ask()">发送</button>
+  </p>
+
+  <h3>对话记录：</h3>
+  <pre id="out" style="background:#f4f4f4;padding:14px;white-space:pre-wrap;min-height:120px;">（还没问过）</pre>
+
+  <p style="color:#666;font-size:13px;">
+    提示：连着问两轮（比如先"我叫陈果，记住了吗"，再"我叫什么名字"），
+    第二轮模型能答上来，说明它"记住"了你。其实它不是真记住，是前端把第一轮也一起发过去了。
+  </p>
+
+  <script>
+  const out = document.getElementById("out");
+
+  // ★★★ 这就是"记忆"的全部物理所在 —— 一个普通数组 ★★★
+  // 它活在浏览器里（前端），不在后端。
+  // 每次发请求前，把新问题和它一起打包发走。
+  let history = [];
+
+
+  async function ask() {
+    const q = document.getElementById("q").value;
+    out.textContent = "";             // 清空上次的回答显示区
+
+    // ① 把本轮"用户说了什么"先记进历史（注意：此刻 assistant 的回复还不知道）
+    history.push({ role: "user", content: q });
+
+    // ② 发请求：把"新问题"和"完整历史"一起发给后端
+    //    body 里的 history 已经包含了刚刚 push 进去的 user 这一条
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q, history: history })
+    });
+
+    // ③ 逐块收（和 Day8 一模一样）
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+
+    let full = "";   // 边收边攒，最后要塞回 history
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const piece = decoder.decode(value, { stream: true });
+      full += piece;
+      out.textContent += piece;
+    }
+
+    // ④ 收完了，把"模型回复了什么"也记进历史
+    //    下一轮发请求时，① ② ③ ④ 加起来，模型就能看到完整上下文
+    history.push({ role: "assistant", content: full });
+
+    // 顺手把对话记录显示出来，方便你肉眼确认 history 里攒了什么
+    console.log("当前 history 里有几轮：", history.length, history);
+  }
+  </script>
+
+</body>
+</html>
