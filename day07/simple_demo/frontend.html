@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="mZfJuXcFvLpVzGCdPszCNk">
+<head data-page-node-id="B1SA0jU2tY4FORB7C0Bbpn">
+  <meta charset="utf-8" data-page-node-id="MirjijG06a6NxJ8EryX8ad">
+  <title>前后端对接 Demo</title>
+</head>
+<body style="font-family:sans-serif;max-width:720px;margin:40px auto;line-height:1.7;" data-page-node-id="DPBSAYaaJu1vwPuGBco2JF">
+
+  <h2 data-page-node-id="Kq9MPMy2tM9B2bsNfGKRe8">前端页面（这个 HTML 是后端发过来的）</h2>
+
+  <p data-page-node-id="ItbxZ5SbJIyXj0Utr2Ly7X">
+    名字：<input id="name" value="陈果" style="width:140px" data-page-node-id="Di7Uwg9kJOX4sgL4DrnHPp">
+    想说的话：<input id="words" value="我在学前后端对接" style="width:240px" data-page-node-id="b6GqQUiF1Teux1FmnMiXK9">
+  </p>
+
+  <p data-page-node-id="LCXwgGBn5YPm4QsUBQnMYK">
+    <button onclick="callHello()" data-page-node-id="S6ziMljqNnXeh3rYWAm63H">① 调 GET /api/hello</button>
+    <button onclick="callEcho()" data-page-node-id="F2YPbY4LSKZ0rmg8rVrEth">② 调 POST /api/echo</button>
+    <button onclick="callWrong()" style="color:#a32d2d;" data-page-node-id="frqAmkitqVeqkv0bV6rmcC">③ 故意写错路径，看它怎么断</button>
+  </p>
+
+  <h3 data-page-node-id="Ydmd5euKKgrZ8oVw5IC4Y5">后端说了什么：</h3>
+  <pre id="out" style="background:#f4f4f4;padding:14px;white-space:pre-wrap;" data-page-node-id="TCO1ofVWmHRO2JVCUY21S1">（还没发过请求）</pre>
+
+  <script>
+  // 把结果显示到页面上
+  function show(text) {
+    document.getElementById("out").textContent = text;
+  }
+
+
+  // ==============================================================
+  // ① GET 请求：问后端要一句话
+  //
+  //    【对齐点 A】"/api/hello"  ←→  后端 @app.get("/api/hello")
+  //    【对齐点 B】不写 method，默认就是 GET  ←→  后端的 @app.get
+  //
+  //    注意这里写的是相对路径 "/api/hello"，不是完整网址。
+  //    浏览器会自动在前面补上 http://127.0.0.1:8010 ——
+  //    因为这个页面本身就是从那儿下载的，浏览器记得来源。
+  // ==============================================================
+  async function callHello() {
+    show("正在请求 /api/hello ...");
+
+    const resp = await fetch("/api/hello");  // await = 卡在这儿等后端回话
+
+    const data = await resp.json();          // 后端回的是 JSON 文本，解析成对象
+    show("HTTP " + resp.status + "\n" + JSON.stringify(data, null, 2));
+  }
+
+
+  // ==============================================================
+  // ② POST 请求：把输入框里的东西送给后端
+  //    三个对齐点在这一段里凑齐了：路径、方法、字段名
+  // ==============================================================
+  async function callEcho() {
+    show("正在请求 /api/echo ...");
+
+    const name  = document.getElementById("name").value;
+    const words = document.getElementById("words").value;
+
+    const resp = await fetch("/api/echo", {          // 【对齐点 A】路径
+      method: "POST",                                 // 【对齐点 B】方法 ←→ @app.post
+      headers: { "Content-Type": "application/json" },
+      // 【对齐点 C】字段名 name / words ←→ 后端 class Talk 里的两个属性
+      // JSON.stringify 在这里干的事：把对象变成一段文本（装信封）
+      body: JSON.stringify({ name: name, words: words })
+    });
+
+    const data = await resp.json();                   // 拆信封：文本变回对象
+    show("HTTP " + resp.status + "\n" + JSON.stringify(data, null, 2));
+  }
+
+
+  // ==============================================================
+  // ③ 故意把路径写错："/api/ech0"（末尾是数字 0，不是字母 o）
+  //
+  //    请求照样发出去，网络一切正常 —— 但后端查路由表查不到这一条，
+  //    回 404，echo() 函数一次都不会执行。
+  //
+  //    这就是"两个字符串必须手写对齐"最直接的证据：
+  //    没有任何机制帮你同步，写错一个字符，链路就断了。
+  // ==============================================================
+  async function callWrong() {
+    show("正在请求 /api/ech0 ...（这个路径后端没有）");
+
+    const resp = await fetch("/api/ech0", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "陈果", words: "路径写错了" })
+    });
+
+    const data = await resp.json();
+    show("HTTP " + resp.status + "  ← 看这个状态码\n" + JSON.stringify(data, null, 2));
+  }
+  </script>
+
+</body>
+</html>
